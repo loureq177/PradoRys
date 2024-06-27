@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>PrądoRys - Interaktywny Wykres</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.5.0/nouislider.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.5.0/nouislider.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@700&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #f5f5f5;
+            font-family: 'Roboto Mono', monospace;
+            transition: background 0.3s ease, color 0.3s ease;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 100%;
+            padding: 0;
+        }
+
+        h1 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 20px;
+        transition: color 0.3s ease;
+        font-family: 'Titillium Web', sans-serif;
+        font-size: 3em;
+        text-shadow: 2px 2px #bbbbbbac;
+        }
+
+        .content-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: stretch;
+            height: calc(100vh - 100px);
+        }
+
+        .chart-container {
+            width: 70%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #myChart {
+            flex: 1;
+            min-height: 0;
+            background: #fff;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            transition: background 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .range-inputs {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+
+        .range-inputs #slider {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .drop-area {
+            width: 28%;
+            border: 2px dashed #007bff;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            background: #e9ecef;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            height: 100%;
+        }
+
+        .drop-area:hover {
+            background: #d1e7ff;
+        }
+
+        .dark-mode {
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+
+        .dark-mode h1 {
+            color: #e0e0e0;
+        }
+
+        .dark-mode #myChart {
+            background: #2a2a2a;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+
+        .dark-mode .drop-area {
+            background: #333;
+            border-color: #007bff;
+            color: #e0e0e0;
+        }
+
+        .dark-mode .drop-area:hover {
+            background: #444;
+        }
+
+        .mode-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #007bff;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .mode-toggle:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <button class="mode-toggle" onclick="toggleDarkMode()">Tryb Ciemny</button>
+    <div class="container">
+        <h1>PrądoRys</h1>
+        <div class="content-wrapper">
+            <div class="chart-container">
+                <canvas id="myChart"></canvas>
+                <div class="range-inputs">
+                    <div id="slider"></div>
+                </div>
+            </div>
+            <div id="dropArea" class="drop-area">
+                Przeciągnij i upuść pliki tutaj lub kliknij, aby wybrać
+                <input type="file" id="fileInput" multiple style="display:none;">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Przekazywanie danych z Django do JavaScript
+        const labels = {{ chart_data.labels|safe }};
+        const maxCurrentData = {{ chart_data.max_current|safe }};
+        const avgCurrentData = {{ chart_data.average_current|safe }};
+        const x_min = {{ x_min }};
+        const x_max = {{ x_max }};
+        
+        var data = {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Prąd Maksymalny',
+                    data: maxCurrentData,
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    showLine: true,
+                    fill: false
+                },
+                {
+                    label: 'Prąd Średni',
+                    data: avgCurrentData,
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    showLine: true,
+                    fill: false
+                }
+            ]
+        };
+
+        const config = {
+            type: 'line',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        min: x_min,
+                        max: x_max,
+                        title: {
+                            display: true,
+                            text: 'Czas'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Prąd (A)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            font: {
+                                size: 14
+                            }
+                        }
+                    }
+                },
+                layout: {
+                    padding: {
+                        top: 10,
+                        right: 10,
+                        bottom: 10,
+                        left: 10
+                    }
+                }
+            }
+        };
+
+        var myChart = new Chart(
+            document.getElementById('myChart'),
+            config
+        );
+
+        function updateRange(min, max) {
+            myChart.options.scales.x.min = min;
+            myChart.options.scales.x.max = max;
+            myChart.update();
+        }
+
+        // Slider initialization
+        var slider = document.getElementById('slider');
+
+        noUiSlider.create(slider, {
+            start: [x_min, x_max],
+            connect: true,
+            range: {
+                'min': x_min,
+                'max': x_max
+            }
+        });
+
+        slider.noUiSlider.on('update', function(values, handle) {
+            const min = parseInt(values[0]);
+            const max = parseInt(values[1]);
+            updateRange(min, max);
+        });
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; cookies.length > i; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+        
+        const dropArea = document.getElementById('dropArea');
+
+        dropArea.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            dropArea.style.backgroundColor = '#f0f0f0';
+        });
+
+        dropArea.addEventListener('dragleave', (event) => {
+            event.preventDefault();
+            dropArea.style.backgroundColor = '#e9ecef';
+        });
+
+        dropArea.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dropArea.style.backgroundColor = '#e9ecef';
+
+            const files = event.dataTransfer.files;
+            handleFiles(files);
+        });
+
+        const fileInput = document.getElementById('fileInput');
+        fileInput.addEventListener('change', (event) => {
+            const files = fileInput.files;
+            handleFiles(files);
+        });
+
+        dropArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        function handleFiles(files) {
+            for (let i = 0; files.length > i; i++) {
+                const file = files[i];
+                uploadFile(file);
+            }
+        }
+
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+        
+            fetch('/upload/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('File uploaded successfully:', data.message);
+                fetchDataAndDisplayChart();
+                dropArea.textContent = 'Wczytano plik';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+        
+        async function fetchDataAndDisplayChart() {
+            try {
+                const response = await fetch('/api/chart-data/');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const data = await response.json();
+                
+                var time = data.map(item => item.time);
+                var max_current = data.map(item => item.max_current);
+                var avg_current = data.map(item => item.avg_current);
+
+                myChart.data.labels = time;
+                myChart.data.datasets[0].data = max_current;
+                myChart.data.datasets[1].data = avg_current;
+                myChart.update();
+                        
+            } catch (error) {
+                console.error('There has been a problem with your fetch operation:', error);
+            }
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            updateChartColors();
+        }
+
+        function updateChartColors() {
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            myChart.options.scales.x.grid.color = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            myChart.options.scales.y.grid.color = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            myChart.options.scales.x.ticks.color = isDarkMode ? '#e0e0e0' : '#666';
+            myChart.options.scales.y.ticks.color = isDarkMode ? '#e0e0e0' : '#666';
+            myChart.options.plugins.legend.labels.color = isDarkMode ? '#e0e0e0' : '#666';
+            myChart.update();
+        }
+    </script>
+</body>
+
+</html>
