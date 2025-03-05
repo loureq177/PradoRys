@@ -2,7 +2,7 @@
 
 # 📉 PrądoRys 📈
 
-![Demo GIF](static\demo.gif)
+![Demo GIF](static/demo.gif)
 
 </div>
 
