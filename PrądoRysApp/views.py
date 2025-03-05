@@ -11,7 +11,7 @@ def index(request):
     return HttpResponse('boże, to się stało.')
 
 def chart_view(request):
-    csv_file_path = r'D:\OneDrive\Desktop\PrądoRys\static\data.csv'
+    csv_file_path = 'static/data.csv'
     
     df = pd.read_csv(csv_file_path)
     
